@@ -1,0 +1,30 @@
+{
+  "name": "xitbc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "X in the Big City: turn a photo into a short cinematic film. Open source, built on the Comfy Developer Platform.",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "test": "node --test --experimental-strip-types test/*.test.ts && tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@comfyorg/sdk": "0.5.0",
+    "ffmpeg-static": "5.3.0",
+    "next": "^16.4.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}

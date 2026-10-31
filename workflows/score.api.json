@@ -1,0 +1,38 @@
+{
+  "film": {
+    "class_type": "LoadVideo",
+    "_meta": {
+      "title": "Rough cut"
+    },
+    "inputs": {
+      "file": "rough.mp4"
+    }
+  },
+  "score": {
+    "class_type": "SoniloVideoToMusic",
+    "_meta": {
+      "title": "Sonilo score"
+    },
+    "inputs": {
+      "video": [
+        "film",
+        0
+      ],
+      "prompt": "",
+      "seed": 0
+    }
+  },
+  "save": {
+    "class_type": "SaveAudio",
+    "_meta": {
+      "title": "Save score"
+    },
+    "inputs": {
+      "audio": [
+        "score",
+        0
+      ],
+      "filename_prefix": "xitbc/score"
+    }
+  }
+}

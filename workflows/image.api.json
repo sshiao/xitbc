@@ -1,0 +1,66 @@
+{
+  "ref1": {
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Reference 1 (the cast image)"
+    },
+    "inputs": {
+      "image": "ref1.png"
+    }
+  },
+  "ref2": {
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Reference 2 (the uploaded photo)"
+    },
+    "inputs": {
+      "image": "ref2.png"
+    }
+  },
+  "refs": {
+    "class_type": "ImageBatch",
+    "_meta": {
+      "title": "Both references"
+    },
+    "inputs": {
+      "image1": [
+        "ref1",
+        0
+      ],
+      "image2": [
+        "ref2",
+        0
+      ]
+    }
+  },
+  "image": {
+    "class_type": "Flux2ProImageNode",
+    "_meta": {
+      "title": "FLUX.2 image"
+    },
+    "inputs": {
+      "images": [
+        "refs",
+        0
+      ],
+      "prompt": "A film still.",
+      "width": 1536,
+      "height": 864,
+      "seed": 0,
+      "prompt_upsampling": false
+    }
+  },
+  "save": {
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save image"
+    },
+    "inputs": {
+      "images": [
+        "image",
+        0
+      ],
+      "filename_prefix": "xitbc/image"
+    }
+  }
+}

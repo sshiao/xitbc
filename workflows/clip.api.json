@@ -1,0 +1,45 @@
+{
+  "still": {
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Storyboard still (first frame)"
+    },
+    "inputs": {
+      "image": "still.png"
+    }
+  },
+  "animate": {
+    "class_type": "LtxApi25ImageToVideo",
+    "_meta": {
+      "title": "LTX-2.5 image to video"
+    },
+    "inputs": {
+      "image": [
+        "still",
+        0
+      ],
+      "model": "LTX-2.5 (Pro)",
+      "model.duration": "8",
+      "model.resolution": "1080x1920",
+      "model.fps": "25",
+      "model.generate_audio": true,
+      "prompt": "Use the provided start image as the first frame.",
+      "seed": 42
+    }
+  },
+  "save": {
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "Save clip"
+    },
+    "inputs": {
+      "video": [
+        "animate",
+        0
+      ],
+      "filename_prefix": "xitbc/clip",
+      "format": "mp4",
+      "format.codec": "h264"
+    }
+  }
+}
