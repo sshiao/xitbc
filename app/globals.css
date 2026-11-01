@@ -106,7 +106,7 @@ input::placeholder { color: var(--muted); opacity: .8; }
 .cast { margin: 0; }
 .cast img, .cast .shimmer { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }
 .cast figcaption, .shot figcaption { margin-top: 6px; color: var(--muted); font-size: 12px; text-align: center; }
-.board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .shot { margin: 0; }
 .shot-frame { position: relative; overflow: hidden; aspect-ratio: 2.39 / 1; border-radius: 10px; border: 1px solid var(--line); background: var(--field); }
 .board.vertical .shot-frame { aspect-ratio: 9 / 16; }
@@ -116,6 +116,12 @@ input::placeholder { color: var(--muted); opacity: .8; }
 .shot.done .shot-frame { border-color: #3c6b52; }
 .shot-badge { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: 6px; background: rgb(0 0 0 / 65%); font-size: 11px; }
 .shot-badge.bad { color: var(--danger); }
+.shot-redraw { position: absolute; right: 6px; top: 6px; padding: 2px 8px; border: 1px solid rgb(255 255 255 / 25%); border-radius: 6px; background: rgb(0 0 0 / 65%); color: inherit; font: inherit; font-size: 11px; cursor: pointer; }
+.shot-redraw:hover, .shot-redraw:focus-visible { border-color: var(--gold); color: var(--gold); }
+/* The button shows on hover or focus, so it does not cover the still. Touch screens always show it. */
+.shot .shot-redraw { opacity: 0; transition: opacity 0.15s; }
+.shot:hover .shot-redraw, .shot .shot-redraw:focus-visible { opacity: 1; }
+@media (hover: none) { .shot .shot-redraw { opacity: 1; } }
 .shot figcaption b { color: var(--gold); }
 .shot figcaption span { opacity: .7; }
 .shimmer { width: 100%; height: 100%; background: linear-gradient(110deg, var(--field) 30%, #262b52 50%, var(--field) 70%) 0 0 / 300% 100%; animation: shimmer 1.6s linear infinite; }

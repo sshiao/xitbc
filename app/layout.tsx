@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "XitBC · X in the Big City",
-  description: "Put anyone in the big city: XitBC turns a photo into a short cinematic film with FLUX.2, LTX-2.5 and Sonilo on the Comfy Developer Platform.",
+  description: "Put anyone in the big city: XitBC turns a photo into a short cinematic film with Claude, FLUX.2, MiniMax H3 and Sonilo on the Comfy Developer Platform.",
 };
 
 export const viewport: Viewport = { themeColor: "#090b1a", width: "device-width", initialScale: 1 };

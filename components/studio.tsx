@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatElapsed, preparePhoto } from "../lib/image";
 import {
   CITIES, DEFAULT_REQUEST, FORMATS, MAX_CITY, MAX_DESCRIPTION, MAX_NAME, QUALITIES, STYLES,
-  filmCost, filmTitle,
+  filmCost, filmTitle, storyboardCost,
   type CityId, type FilmRequest, type FormatId, type QualityId, type StyleId,
 } from "../lib/xitbc";
 
@@ -114,18 +114,19 @@ function Hero() {
         <rect x="294" y="238" width="8" height="18" rx="3" fill="#ffd36b" />
       </svg>
       <h1><span className="hero-star" key={index}>{STARS[index]}</span> in the Big City</h1>
-      <p>Pick a star and a city. XitBC casts them, draws a five-scene storyboard, films each scene, scores it, and cuts it into a short film with a title card.</p>
+      <p>Pick a star and a city. XitBC casts them, writes a seven-shot chase through the city, draws the storyboard, films each shot, scores it, and cuts it into a short film with a title card.</p>
       <ol className="how">
         <li><b>1</b> Add your star</li>
         <li><b>2</b> Pick a city</li>
-        <li><b>3</b> Get a 27-second film</li>
+        <li><b>3</b> Get a 25-second film</li>
       </ol>
     </section>
   );
 }
 
-function Storyboard(props: { film: Film }) {
-  const { film } = props;
+function Storyboard(props: { film: Film; onRedraw?: (index: number) => void }) {
+  const { film, onRedraw } = props;
+  const cost = `about $${QUALITIES[film.request.quality].imageCost.toFixed(2)}`;
   const vertical = film.request.format === "vertical";
   return (
     <div className={`board${vertical ? " vertical" : ""}`}>
@@ -141,6 +142,7 @@ function Storyboard(props: { film: Film }) {
             {shot.status === "composing" && <span className="shot-badge">Composing…</span>}
             {shot.status === "filming" && <span className="shot-badge">Filming…</span>}
             {shot.status === "failed" && <span className="shot-badge bad">Failed</span>}
+            {onRedraw && shot.still && <button type="button" className="shot-redraw" aria-label={`Redraw shot ${index + 1}, ${cost}`} title={`Draw this still again, ${cost}`} onClick={() => onRedraw(index)}>Redraw</button>}
           </div>
           <figcaption><b>{index + 1}</b> {shot.label} <span>{shot.seconds} s</span></figcaption>
         </figure>
@@ -289,6 +291,21 @@ export function Studio() {
     }
   }
 
+  async function redraw(index: number) {
+    if (!film) return;
+    setSending(true); setError(false); setMessage("");
+    try {
+      const response = await fetch(`/api/films/${film.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ redraw: index }) });
+      if (!response.ok) throw await errorFrom(response, "Could not redraw the still.");
+      setFilm(await response.json() as Film);
+      setNow(Date.now());
+    } catch (cause) {
+      setError(true); setMessage(cause instanceof Error ? cause.message : "Could not redraw the still.");
+    } finally {
+      setSending(false);
+    }
+  }
+
   function closeFilm() {
     setFilm(null); setMessage(""); setError(false);
     window.history.replaceState(null, "", window.location.pathname);
@@ -312,11 +329,10 @@ export function Studio() {
   const progress = !film ? "" : {
     casting: `Casting ${film.request.name}…`,
     storyboard: "Drawing the storyboard with FLUX.2…",
-    filming: `LTX-2.5 is filming ${filming || "the"} shot${filming === 1 ? "" : "s"}…`,
+    filming: `MiniMax H3 is filming ${filming || "the"} shot${filming === 1 ? "" : "s"}…`,
     scoring: "Cutting the rough cut and writing the score with Sonilo…",
     editing: "Mixing the final cut…",
   }[film.stage] ?? "";
-  const storyboardCost = 7 * QUALITIES[form.quality].imageCost;
 
   return (
     <div className="app">
@@ -364,7 +380,7 @@ export function Studio() {
           <button type="button" className="secondary" disabled={!form.name.trim() || working || status?.configured === false} onClick={() => void start(true)}>
             Storyboard first
           </button>
-          <p className="note">{QUALITIES[form.quality].hint}. A full film costs about ${filmCost(form.quality).toFixed(2)}. A storyboard alone costs about ${storyboardCost.toFixed(2)}.</p>
+          <p className="note">{QUALITIES[form.quality].hint}. A full film costs about ${filmCost(form.quality).toFixed(2)}. A storyboard alone costs about ${storyboardCost(form.quality).toFixed(2)}.</p>
         </aside>
 
         <main className="stage">
@@ -389,18 +405,23 @@ export function Studio() {
                   {film.cast ? <img src={fileUrl(film, film.cast)} alt={`${film.request.name}, cast`} /> : <div className="shimmer" />}
                   <figcaption>Meet {film.request.name}</figcaption>
                 </figure>
-                <Storyboard film={film} />
+                <Storyboard film={film} onRedraw={film.storyboardOnly && film.stage === "done" && !sending ? (index) => void redraw(index) : undefined} />
               </div>
 
               {busy(film) && <p className="summary">{progress} {formatElapsed(now - film.createdAt)} elapsed. A storyboard takes about 3 minutes and a film about 5 to 8.</p>}
               {film.stage === "failed" && <p className="status error">{film.error}</p>}
+              {film.stage === "failed" && film.shots.every((shot) => shot.still) && (
+                <div className="actions">
+                  <button type="button" className="run small" disabled={sending} onClick={() => void filmIt()}>Try again (finished clips are kept)</button>
+                </div>
+              )}
               {film.warnings.length > 0 && <p className="status">{film.warnings.join(" ")}</p>}
 
               {film.stage === "done" && (
                 <div className="actions">
                   {film.storyboardOnly ? (
                     <button type="button" className="run small" disabled={sending} onClick={() => void filmIt()}>
-                      Film it (about ${(filmCost(film.request.quality) - storyboardCost).toFixed(2)})
+                      Film it (about ${(filmCost(film.request.quality) - storyboardCost(film.request.quality)).toFixed(2)})
                     </button>
                   ) : (
                     <>

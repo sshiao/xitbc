@@ -84,7 +84,7 @@ export function imageWorkflow(template: Graph, input: {
   return graph;
 }
 
-// Fills workflows/clip.api.json: LoadImage -> LTX-2.5 image to video -> SaveVideo.
+// Fills workflows/clip.api.json: LoadImage -> MiniMax H3 first frame to video -> SaveVideo.
 export function clipWorkflow(template: Graph, input: {
   still: unknown;
   prompt: string;
@@ -97,12 +97,11 @@ export function clipWorkflow(template: Graph, input: {
   graph.still.inputs.image = input.still;
   Object.assign(graph.animate.inputs, {
     model: QUALITIES[input.quality].videoModel,
-    "model.duration": String(input.seconds),
-    "model.resolution": FORMATS[input.format].video[input.quality],
-    "model.fps": "25",
-    "model.generate_audio": true,
-    prompt: input.prompt,
+    "model.prompt": input.prompt,
+    "model.resolution": QUALITIES[input.quality].videoResolution,
+    "model.duration": input.seconds,
     seed: input.seed,
+    watermark: false,
   });
   return graph;
 }

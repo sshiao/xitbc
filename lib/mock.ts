@@ -65,3 +65,8 @@ export async function mockScore(): Promise<Media | null> {
 export async function mockDescribe(): Promise<string> {
   return "";
 }
+
+// Mock mode has no screenwriter: the film uses the built-in screenplay.
+export async function mockWrite(): Promise<string> {
+  return "";
+}

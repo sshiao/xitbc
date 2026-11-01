@@ -2,6 +2,7 @@
 //
 //   node scripts/film.mjs new --name Maya --description "a girl in a yellow raincoat" --city tokyo [--storyboard] [--photo star.jpg]
 //   node scripts/film.mjs continue <film id>
+//   node scripts/film.mjs redraw <film id> <shot number, 1 to 5>
 //
 // Options for "new": --name, --description, --city, --custom-city, --style, --format, --quality, --photo, --storyboard.
 // Set XITBC_URL to reach an app that is not on http://localhost:3000.
@@ -43,8 +44,15 @@ async function resume(id) {
   return film.id;
 }
 
-const id = command === "new" ? await start() : command === "continue" ? await resume(rest[0]) : null;
-if (!id) throw new Error('Use "new" or "continue <film id>".');
+async function redraw(id, shot) {
+  const response = await fetch(`${base}/api/films/${id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ redraw: Number(shot) - 1 }) });
+  const film = await response.json();
+  if (!response.ok) throw new Error(film.error ?? `The app answered ${response.status}.`);
+  return film.id;
+}
+
+const id = command === "new" ? await start() : command === "continue" ? await resume(rest[0]) : command === "redraw" ? await redraw(rest[0], rest[1]) : null;
+if (!id) throw new Error('Use "new", "continue <film id>" or "redraw <film id> <shot number>".');
 console.log(`film ${id}`);
 
 const started = Date.now();

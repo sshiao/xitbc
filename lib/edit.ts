@@ -53,7 +53,7 @@ export function letterboxFilter(width: number, height: number) {
   return `crop=${width}:${band}:0:${top},pad=${width}:${height}:0:${top}:black`;
 }
 
-// Puts a 2.4:1 still between black bars in a 16:9 frame, the way LTX-2.5 expects a letterboxed shot.
+// Puts a 2.4:1 still between black bars in a 16:9 frame, so the video model keeps a letterboxed shot.
 export function barsArgs(input: { source: string; width: number; height: number; out: string }): string[] {
   const { band, top } = letterboxBand(input.width, input.height);
   return ["-i", input.source, "-vf", `scale=${input.width}:${band},setsar=1,pad=${input.width}:${input.height}:0:${top}:black`, "-frames:v", "1", input.out];
@@ -221,7 +221,7 @@ export function roughCutArgs(input: {
       last ? `fade=t=out:st=${fixed(clip.seconds - 0.8)}:d=0.8` : "",
     ].filter(Boolean).map((fade) => `,${fade}`).join("");
     const out = last ? 0.8 : 0.08;
-    // Each clip is cut to its part in the edit, which can be shorter than what LTX-2.5 made.
+    // Each clip is cut to its part in the edit, which can be shorter than what the video model made.
     filters.push(`[${i}:v]trim=start=${fixed(clip.start)}:duration=${fixed(clip.seconds)},setpts=PTS-STARTPTS,fps=25,scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1,${look}${bars}${title}${fades},format=yuv420p,settb=AVTB[v${i}]`);
     filters.push(clip.audio
       ? `[${i}:a]${AUDIO},atrim=start=${fixed(clip.start)}:duration=${fixed(clip.seconds)},asetpts=PTS-STARTPTS,afade=t=in:d=0.05,afade=t=out:st=${fixed(clip.seconds - out)}:d=${out}[a${i}]`

@@ -52,14 +52,17 @@ test("imageWorkflow drops the batch for one reference, and every reference for n
   assert.equal(image.ref1.inputs.image, "ref1.png", "the template stays unchanged");
 });
 
-test("clipWorkflow sets the LTX-2.5 model, length and size", () => {
+test("clipWorkflow sets the MiniMax H3 model, prompt, length and size", () => {
   const graph = clipWorkflow(clip, { still: "s.png", prompt: "go", seconds: 5, quality: "final", format: "vertical", seed: 9 });
   assert.equal(graph.still.inputs.image, "s.png");
-  assert.equal(graph.animate.class_type, "LtxApi25ImageToVideo");
-  assert.equal(graph.animate.inputs.model, "LTX-2.5 (Pro)");
-  assert.equal(graph.animate.inputs["model.duration"], "5");
-  assert.equal(graph.animate.inputs["model.resolution"], "1080x1920");
-  assert.equal(graph.animate.inputs["model.generate_audio"], true);
+  assert.equal(graph.animate.class_type, "MinimaxHailuo03FirstLastFrameNode");
+  assert.deepEqual(graph.animate.inputs.first_frame, ["still", 0]);
+  assert.equal(graph.animate.inputs.model, "MiniMax H3");
+  assert.equal(graph.animate.inputs["model.prompt"], "go");
+  assert.equal(graph.animate.inputs["model.duration"], 5);
+  assert.equal(graph.animate.inputs["model.resolution"], "2K");
+  assert.equal(graph.animate.inputs.watermark, false);
+  assert.equal(clipWorkflow(clip, { still: "s.png", prompt: "go", seconds: 4, quality: "draft", format: "cinema", seed: 1 }).animate.inputs["model.resolution"], "768P");
 });
 
 test("scoreWorkflow feeds the rough cut to Sonilo", () => {

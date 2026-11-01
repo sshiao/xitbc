@@ -2,23 +2,24 @@
 // next to every file it makes. The page polls that state.
 
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { comfyClip, comfyDescribe, comfyErrorMessage, comfyImage, comfyScore, extension, hasApiKey, isFinal, type ClipInput, type ImageInput, type Media, type ScoreInput } from "./comfy";
+import { comfyClip, comfyDescribe, comfyErrorMessage, comfyImage, comfyScore, comfyWrite, extension, hasApiKey, isFinal, type ClipInput, type ImageInput, type Media, type ScoreInput } from "./comfy";
 import {
   barsArgs, calmestCorner, finalMixArgs, fitArgs, frameArgs, grayArgs, posterArgs, probe, roughCutArgs, runFfmpeg, titleFont,
   type TitleClip, type TitleText,
 } from "./edit";
-import { MOCK, mockClip, mockDescribe, mockImage, mockScore } from "./mock";
+import { MOCK, mockClip, mockDescribe, mockImage, mockScore, mockWrite } from "./mock";
 import { randomSeed } from "./requests";
 import {
   BEATS, CAST_SIZE, FORMATS, STYLES, TITLE_SECONDS,
-  castNotesPrompt, castPrompt, filmTitle, scorePrompt, shotMotionPrompt, shotStillPrompt, titleLines,
-  type BeatId, type FilmRequest,
+  castNotesPrompt, castPrompt, defaultScript, filmTitle, readScript, scorePrompt, scriptPrompt, shotMotionPrompt, shotStillPrompt, titleLines,
+  type BeatId, type FilmRequest, type Script,
 } from "./xitbc";
 
 export const FILMS_DIR = join(process.cwd(), ".films");
-const STALE_MS = 25 * 60_000;
+// A MiniMax H3 clip can wait in the Comfy Cloud queue for a long time before the film changes.
+const STALE_MS = 60 * 60_000;
 
 export type Stage = "casting" | "storyboard" | "filming" | "scoring" | "editing" | "done" | "failed";
 export type ShotStatus = "waiting" | "composing" | "filming" | "done" | "failed";
@@ -35,8 +36,10 @@ export type Film = {
   reference: string | null;
   cast: string | null;
   castNotes: string | null;
+  script: Script | null;
   poster: string | null;
-  shots: { beat: BeatId; label: string; seconds: number; status: ShotStatus; still: string | null; clip: string | null }[];
+  // "job" is the Comfy job of the shot's clip, so a resumed film fetches it instead of paying for it again.
+  shots: { beat: BeatId; label: string; seconds: number; status: ShotStatus; still: string | null; clip: string | null; job?: string | null }[];
   rough: string | null;
   music: string | null;
   final: string | null;
@@ -47,6 +50,7 @@ export type Film = {
 
 type Engine = {
   describe(image: Media, prompt: string): Promise<string>;
+  write(prompt: string): Promise<string>;
   image(input: ImageInput): Promise<Media>;
   clip(input: ClipInput): Promise<Media>;
   score(input: ScoreInput): Promise<Media | null>;
@@ -57,8 +61,8 @@ export function isConfigured() {
 }
 
 function engineFor(dir: string): Engine {
-  if (MOCK) return { describe: () => mockDescribe(), image: (input) => mockImage(dir, input), clip: (input) => mockClip(dir, input), score: () => mockScore() };
-  return { describe: comfyDescribe, image: comfyImage, clip: comfyClip, score: comfyScore };
+  if (MOCK) return { describe: () => mockDescribe(), write: () => mockWrite(), image: (input) => mockImage(dir, input), clip: (input) => mockClip(dir, input), score: () => mockScore() };
+  return { describe: comfyDescribe, write: comfyWrite, image: comfyImage, clip: comfyClip, score: comfyScore };
 }
 
 const ID = /^[a-z0-9]{6,16}-[a-f0-9]{6}$/;
@@ -139,8 +143,9 @@ export async function createFilm(request: FilmRequest, reference: Media | null, 
     reference: null,
     cast: null,
     castNotes: null,
+    script: null,
     poster: null,
-    shots: BEATS.map((beat) => ({ beat: beat.id, label: beat.label, seconds: beat.seconds, status: "waiting", still: null, clip: null })),
+    shots: BEATS.map((beat) => ({ beat: beat.id, label: beat.label, seconds: beat.seconds, status: "waiting", still: null, clip: null, job: null })),
     rough: null,
     music: null,
     final: null,
@@ -157,15 +162,41 @@ export async function createFilm(request: FilmRequest, reference: Media | null, 
   return film;
 }
 
-// Films a storyboard-only film from the stills it already has.
+// A film from before the chase story has other beats, so it cannot be filmed or redrawn now.
+const OLDER = "This storyboard comes from an older version of XitBC. Start a new film.";
+const current = (film: Film) => film.shots.length === BEATS.length && film.shots.every((shot, index) => shot.beat === BEATS[index].id);
+
+// Films a storyboard-only film from the stills it already has. It also resumes a failed film:
+// clips that are done stay, and a clip that was already submitted is fetched, not paid for again.
 export async function continueFilm(id: string): Promise<Film> {
   const film = await readFilm(id);
   if (!film) throw new Error("Unknown film.");
-  if (!film.storyboardOnly || film.stage !== "done") throw new Error("Only a finished storyboard can be filmed.");
+  const storyboard = film.storyboardOnly && film.stage === "done";
+  const resumable = film.stage === "failed" && film.shots.every((shot) => shot.still);
+  if (!storyboard && !resumable) throw new Error("Only a finished storyboard or a failed film can be filmed.");
+  if (!current(film)) throw new Error(OLDER);
   film.storyboardOnly = false;
   film.stage = "filming";
   film.finishedAt = null;
-  for (const shot of film.shots) shot.status = "waiting";
+  film.error = null;
+  for (const shot of film.shots) shot.status = shot.clip ? "done" : "waiting";
+  await save(film);
+  void produce(film);
+  return film;
+}
+
+// Draws one still of a finished storyboard again, for example when the image model got the star wrong.
+export async function redrawShot(id: string, index: number): Promise<Film> {
+  const film = await readFilm(id);
+  if (!film) throw new Error("Unknown film.");
+  if (!film.storyboardOnly || film.stage !== "done") throw new Error("Only a finished storyboard can be redrawn.");
+  if (!current(film)) throw new Error(OLDER);
+  const shot = film.shots[index];
+  if (!shot) throw new Error("Unknown shot.");
+  shot.still = null;
+  shot.status = "waiting";
+  film.stage = "storyboard";
+  film.finishedAt = null;
   await save(film);
   void produce(film);
   return film;
@@ -221,7 +252,25 @@ async function stages(film: Film) {
   }
   const notes = film.castNotes;
 
-  // 2. Storyboard and filming. Each shot goes to LTX-2.5 as soon as its still is ready.
+  // The screenplay: Claude writes each shot for this star and city, or the built-in chase stands in.
+  if (!film.script) {
+    try {
+      const text = await retry(() => engine.write(scriptPrompt(request, notes)));
+      film.script = text ? readScript(text) : null;
+      if (text && !film.script) {
+        // The raw answer stays next to the film, to see what went wrong.
+        await writeFile(join(dir, "screenplay.txt"), text);
+        film.warnings.push("The screenwriter's answer was not usable, so the film uses the built-in screenplay.");
+      }
+    } catch (error) {
+      film.warnings.push(`No screenplay: ${comfyErrorMessage(error)}`);
+    }
+    film.script ??= defaultScript(request);
+    await save(film);
+  }
+  const script = film.script;
+
+  // 2. Storyboard and filming. Each shot goes to MiniMax H3 as soon as its still is ready.
   if (film.stage === "casting") film.stage = "storyboard";
   await save(film);
   const refs = fitted ? [cast, fitted] : [cast];
@@ -232,8 +281,11 @@ async function stages(film: Film) {
     } else {
       shot.status = "composing";
       await save(film);
-      still = await retry(() => engine.image({ prompt: shotStillPrompt(request, shot.beat, notes), width, height, seed: randomSeed(), quality: request.quality, refs }));
-      shot.still = await write(`shot-${index + 1}.png`, still);
+      still = await retry(() => engine.image({ prompt: shotStillPrompt(request, shot.beat, notes, script), width, height, seed: randomSeed(), quality: request.quality, refs }));
+      // A redrawn still gets a new name, so the page does not show the cached one.
+      const first = `shot-${index + 1}.png`;
+      const taken = await access(join(dir, first)).then(() => true, () => false);
+      shot.still = await write(taken ? `shot-${index + 1}-${Date.now().toString(36)}.png` : first, still);
     }
     // A shot that already has its clip is not filmed again.
     if (film.storyboardOnly || shot.clip) {
@@ -244,13 +296,17 @@ async function stages(film: Film) {
     shot.status = "filming";
     film.stage = "filming";
     await save(film);
-    // A cinema still goes to LTX-2.5 between black bars, so the edit can crop back to the same band.
+    // A cinema still goes to MiniMax H3 between black bars, so the edit can crop back to the same band.
     let first = still;
     if (FORMATS[request.format].letterbox) {
       await runFfmpeg(barsArgs({ source: join(dir, shot.still), ...size(film), out: join(dir, `shot-${index + 1}-frame.png`) }));
       first = await read(`shot-${index + 1}-frame.png`);
     }
-    const clip = await retry(() => engine.clip({ still: first, prompt: shotMotionPrompt(request, shot.beat, notes), seconds: shot.seconds, quality: request.quality, format: request.format, seed: randomSeed() }));
+    const clip = await retry(() => engine.clip({
+      still: first, prompt: shotMotionPrompt(request, shot.beat, notes, script), seconds: shot.seconds, quality: request.quality, format: request.format, seed: randomSeed(),
+      job: shot.job ?? undefined,
+      onSubmit: async (job) => { shot.job = job; await save(film); },
+    }));
     shot.clip = await write(`shot-${index + 1}.mp4`, clip);
     shot.status = "done";
     await save(film);
@@ -272,7 +328,7 @@ async function stages(film: Film) {
   // 3. Rough cut: one grade for every shot, black bars for cinema, and the title over the end of the finale.
   film.stage = "scoring";
   await save(film);
-  // Each clip is cut to the part its beat uses, which can be shorter than what LTX-2.5 made.
+  // Each clip is cut to the part its beat uses, which can be shorter than what MiniMax H3 made.
   const clips = await Promise.all(film.shots.map(async (shot) => {
     const found = await probe(join(dir, shot.clip!));
     const beat = BEATS.find((item) => item.id === shot.beat);

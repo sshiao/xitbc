@@ -9,22 +9,21 @@
     }
   },
   "animate": {
-    "class_type": "LtxApi25ImageToVideo",
+    "class_type": "MinimaxHailuo03FirstLastFrameNode",
     "_meta": {
-      "title": "LTX-2.5 image to video"
+      "title": "MiniMax H3 first frame to video"
     },
     "inputs": {
-      "image": [
+      "model": "MiniMax H3",
+      "model.prompt": "Use the provided start image as the first frame.",
+      "model.resolution": "768P",
+      "model.duration": 4,
+      "first_frame": [
         "still",
         0
       ],
-      "model": "LTX-2.5 (Pro)",
-      "model.duration": "8",
-      "model.resolution": "1080x1920",
-      "model.fps": "25",
-      "model.generate_audio": true,
-      "prompt": "Use the provided start image as the first frame.",
-      "seed": 42
+      "seed": 42,
+      "watermark": false
     }
   },
   "save": {
