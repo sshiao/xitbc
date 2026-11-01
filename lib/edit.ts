@@ -166,6 +166,9 @@ export function titleFilters(text: TitleText, width: number, height: number, off
     "shadowcolor=black@0.55",
     "shadowx=0",
     `shadowy=${shadow}`,
+    // A faint dark edge keeps the letters readable over light patches.
+    `borderw=${Math.max(1, Math.round(layout.size / 45))}`,
+    "bordercolor=black@0.35",
     `x=${x}`,
     `y=${offset + layout.top + index * layout.lead}`,
   ].join(":") + alpha).join(",");

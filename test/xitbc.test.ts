@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   BEATS, CITIES, DEFAULT_REQUEST, FORMATS, QUALITIES, STYLES,
   PROP, castPrompt, cityPack, defaultScript, filmCost, filmSeconds, filmTitle, readScript, scriptPrompt, shotMotionPrompt, shotStillPrompt,
-  starName, storyboardCost, titleLines,
+  refilmCost, starName, storyboardCost, titleLines,
   type FilmRequest, type PlaceId,
 } from "../lib/xitbc.ts";
 
@@ -15,12 +15,12 @@ test("the title capitalizes the star's name", () => {
 });
 
 test("the chase has seven beats that MiniMax H3 can render, ending on the rooftop", () => {
-  assert.deepEqual(BEATS.map((beat) => beat.id), ["arrival", "gust", "chase", "treat", "landmark", "spotted", "finale"]);
+  assert.deepEqual(BEATS.map((beat) => beat.id), ["arrival", "gust", "chase", "treat", "landmark", "catch", "finale"]);
   for (const beat of BEATS) {
     assert.ok(Number.isInteger(beat.seconds) && beat.seconds >= 4 && beat.seconds <= 15, `${beat.id} is 4 to 15 seconds`);
     assert.ok(beat.from >= 0 && beat.from < beat.use && beat.use <= beat.seconds, `${beat.id} is cut inside its clip`);
   }
-  assert.ok(Math.abs(filmSeconds() - 24.8) < 0.001);
+  assert.ok(Math.abs(filmSeconds() - 23.9) < 0.001);
 });
 
 test("every city has the five places the beats use", () => {
@@ -45,7 +45,7 @@ test("each still prompt names the star, the setting, the light and the frame", (
   const prompt = shotStillPrompt(maya, "arrival");
   assert.match(prompt, /The star is Maya, a girl in a yellow raincoat/);
   assert.match(prompt, /subway entrance/);
-  assert.match(prompt, /with a bright red balloon on a string/);
+  assert.match(prompt, /holding a bright red balloon by its string/);
   assert.match(prompt, /Early morning/);
   assert.match(prompt, /ultra-wide 2\.39:1/);
   assert.match(prompt, /no billboards, signs, screens or written words/);
@@ -68,7 +68,7 @@ test("each motion prompt anchors the first frame and asks for sound without musi
     const prompt = shotMotionPrompt(maya, beat.id);
     assert.match(prompt, /^Use the provided start image as the first frame\./);
     assert.match(prompt, /No music and no speech/);
-    assert.match(prompt, /Maya never looks into the lens/);
+    assert.match(prompt, /For the whole shot, Maya's eyes stay on .+, never on the lens\./);
     assert.doesNotMatch(prompt, /\{|\}/);
   }
 });
@@ -86,14 +86,14 @@ test("the beats suit a star of any body", () => {
 test("an animal star keeps its own body in every still and clip", () => {
   const woolly: FilmRequest = { ...maya, name: "woolly", description: "a fluffy white sheep" };
   for (const beat of BEATS) {
-    assert.match(shotStillPrompt(woolly, beat.id), /Woolly keeps exactly the body from the references: an animal or a toy never gets human hands/);
-    assert.match(shotMotionPrompt(woolly, beat.id), /never gets human hands or a human pose/);
+    assert.match(shotStillPrompt(woolly, beat.id), /Woolly keeps exactly the body and size from the references: an animal or a toy never gets human hands, a human pose or a human grin/);
+    assert.match(shotMotionPrompt(woolly, beat.id), /its feet never hold anything/);
   }
 });
 
 test("the camera moves stay simple", () => {
-  for (const beat of BEATS) assert.doesNotMatch(beat.move.replace("no crane move", ""), /crane|dollies out|orbit|whip/i);
-  assert.match(BEATS.find((beat) => beat.id === "finale")!.move, /no crane move/);
+  for (const beat of BEATS) assert.doesNotMatch(beat.move.replace("no crane move", ""), /crane|dollies out|orbit|whip pan/i);
+  assert.match(BEATS.find((beat) => beat.id === "finale")!.move, /The camera holds completely still/, "the title rests on a still frame");
 });
 
 test("every beat gives the star a different shot size", () => {
@@ -117,6 +117,7 @@ test("the cost estimate grows with quality", () => {
   assert.ok(filmCost("final") > filmCost("draft"));
   assert.ok(filmCost("draft") > 4 && filmCost("draft") < 5);
   assert.equal(storyboardCost("draft"), 8 * QUALITIES.draft.imageCost, "the casting image and one still per beat");
+  assert.ok(Math.abs(refilmCost("draft", 4) - (4 * QUALITIES.draft.videoPerSecond + filmSeconds() * 0.009)) < 1e-9, "one clip and a new score");
   assert.ok(Object.keys(STYLES).length === 2 && Object.keys(QUALITIES).length === 2);
 });
 
@@ -125,7 +126,8 @@ test("the built-in screenplay has one shot per beat, in order, with the balloon"
   assert.equal(script.writer, "template");
   assert.deepEqual(script.shots.map((shot) => shot.beat), BEATS.map((beat) => beat.id));
   for (const shot of script.shots) assert.doesNotMatch(`${shot.frame} ${shot.move} ${shot.sound}`, /\{|\}/);
-  assert.match(script.shots[1].frame, /gust tears a bright red balloon loose/);
+  assert.match(script.shots[1].frame, /holding the string of a bright red balloon as the wind rises/);
+  assert.match(script.shots[1].move, /tears the string away/);
   assert.match(script.shots[6].move, /the Empire State Building stays fixed/);
 });
 
@@ -167,5 +169,19 @@ test("readScript refuses a short, unordered or broken answer", () => {
 test("a written screenplay flows into the still and motion prompts", () => {
   const script = readScript(answer(written))!;
   assert.match(shotStillPrompt(maya, "chase", "", script), /Woolly in the chase shot\./);
-  assert.match(shotMotionPrompt(maya, "spotted", "", script), /Woolly trots on\. .*Sound: a bleat\. No music and no speech\./);
+  assert.match(shotMotionPrompt(maya, "catch", "", script), /Woolly trots on\. .*Sound: a bleat\. No music and no speech\./);
+});
+
+test("every shot fixes where the balloon is and where the star looks", () => {
+  const chase = shotStillPrompt(maya, "chase");
+  assert.match(chase, /A bright red balloon is loose and out of reach: it floats high and far ahead of Maya, in the upper right of the frame/);
+  assert.match(chase, /Maya looks at a bright red balloon ahead, never into the lens\./);
+  assert.match(shotStillPrompt(maya, "arrival"), /Maya holds the long white string of a bright red balloon, in the mouth if Maya is an animal\./);
+  assert.match(shotMotionPrompt(maya, "gust"), /At the start of the shot: Maya still holds the string/, "the motion prompt places the balloon at the start");
+  assert.match(shotMotionPrompt(maya, "finale"), /fully inside the frame.*Maya's eyes stay on the glittering skyline, never on the lens/);
+  assert.match(shotMotionPrompt(maya, "finale"), /The camera holds completely still/);
+  assert.match(shotStillPrompt(maya, "chase"), /The balloon is matte, never glowing/);
+  assert.match(shotStillPrompt(maya, "finale"), /Maya in the left half of the frame and open sky on the right/, "the sky on the right stays free for the title");
+  const brief = scriptPrompt(maya);
+  for (const beat of BEATS) assert.match(brief, new RegExp(`"${beat.id}": [^\\n]+ The balloon: [A-Z][^\\n]+ Maya looks at `));
 });

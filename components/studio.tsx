@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatElapsed, preparePhoto } from "../lib/image";
 import {
   CITIES, DEFAULT_REQUEST, FORMATS, MAX_CITY, MAX_DESCRIPTION, MAX_NAME, QUALITIES, STYLES,
-  filmCost, filmTitle, storyboardCost,
+  filmCost, filmTitle, refilmCost, storyboardCost,
   type CityId, type FilmRequest, type FormatId, type QualityId, type StyleId,
 } from "../lib/xitbc";
 
@@ -124,9 +124,11 @@ function Hero() {
   );
 }
 
-function Storyboard(props: { film: Film; onRedraw?: (index: number) => void }) {
-  const { film, onRedraw } = props;
-  const cost = `about $${QUALITIES[film.request.quality].imageCost.toFixed(2)}`;
+// Redraw for a still of a finished storyboard, re-film for a shot of a finished film.
+type ShotAction = { label: string; hint: string; cost: (index: number) => number; run: (index: number) => void };
+
+function Storyboard(props: { film: Film; action?: ShotAction }) {
+  const { film, action } = props;
   const vertical = film.request.format === "vertical";
   return (
     <div className={`board${vertical ? " vertical" : ""}`}>
@@ -142,7 +144,10 @@ function Storyboard(props: { film: Film; onRedraw?: (index: number) => void }) {
             {shot.status === "composing" && <span className="shot-badge">Composing…</span>}
             {shot.status === "filming" && <span className="shot-badge">Filming…</span>}
             {shot.status === "failed" && <span className="shot-badge bad">Failed</span>}
-            {onRedraw && shot.still && <button type="button" className="shot-redraw" aria-label={`Redraw shot ${index + 1}, ${cost}`} title={`Draw this still again, ${cost}`} onClick={() => onRedraw(index)}>Redraw</button>}
+            {action && shot.still && (
+              <button type="button" className="shot-redraw" aria-label={`${action.label} shot ${index + 1}, about $${action.cost(index).toFixed(2)}`}
+                title={`${action.hint}, about $${action.cost(index).toFixed(2)}`} onClick={() => action.run(index)}>{action.label}</button>
+            )}
           </div>
           <figcaption><b>{index + 1}</b> {shot.label} <span>{shot.seconds} s</span></figcaption>
         </figure>
@@ -291,16 +296,17 @@ export function Studio() {
     }
   }
 
-  async function redraw(index: number) {
+  async function redo(kind: "redraw" | "refilm", index: number) {
     if (!film) return;
+    const failure = kind === "redraw" ? "Could not redraw the still." : "Could not film the shot again.";
     setSending(true); setError(false); setMessage("");
     try {
-      const response = await fetch(`/api/films/${film.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ redraw: index }) });
-      if (!response.ok) throw await errorFrom(response, "Could not redraw the still.");
+      const response = await fetch(`/api/films/${film.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [kind]: index }) });
+      if (!response.ok) throw await errorFrom(response, failure);
       setFilm(await response.json() as Film);
       setNow(Date.now());
     } catch (cause) {
-      setError(true); setMessage(cause instanceof Error ? cause.message : "Could not redraw the still.");
+      setError(true); setMessage(cause instanceof Error ? cause.message : failure);
     } finally {
       setSending(false);
     }
@@ -405,7 +411,9 @@ export function Studio() {
                   {film.cast ? <img src={fileUrl(film, film.cast)} alt={`${film.request.name}, cast`} /> : <div className="shimmer" />}
                   <figcaption>Meet {film.request.name}</figcaption>
                 </figure>
-                <Storyboard film={film} onRedraw={film.storyboardOnly && film.stage === "done" && !sending ? (index) => void redraw(index) : undefined} />
+                <Storyboard film={film} action={film.stage !== "done" || sending ? undefined : film.storyboardOnly
+                  ? { label: "Redraw", hint: "Draw this still again", cost: () => QUALITIES[film.request.quality].imageCost, run: (index) => void redo("redraw", index) }
+                  : { label: "Re-film", hint: "Film this shot again and cut the film again", cost: (index) => refilmCost(film.request.quality, film.shots[index].seconds), run: (index) => void redo("refilm", index) }} />
               </div>
 
               {busy(film) && <p className="summary">{progress} {formatElapsed(now - film.createdAt)} elapsed. A storyboard takes about 3 minutes and a film about 5 to 8.</p>}

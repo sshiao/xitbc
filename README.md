@@ -12,6 +12,7 @@ XitBC is open source and runs on the Comfy Developer Platform. It was built for 
 - **Two styles**: live action, or a 3D animated feature.
 - **Two formats**: cinema 2.39:1 with black bars, or vertical 9:16 for phones.
 - **Storyboard first.** See the casting image and all seven shots for about $0.45, then film the storyboard you like. Redraw any single still for about $0.05.
+- **Fix one shot.** Re-film any single shot of a finished film for about $0.75. The other clips stay, and the film is cut and scored again.
 
 ## How it works
 
@@ -41,7 +42,7 @@ photo or description
 6. Final cut    ffmpeg mixes the score over the clips' own sound             final.mp4
 ```
 
-The story lives in `lib/xitbc.ts`. The film is a chase through one day, in seven beats: the morning arrival, the gust that steals the balloon, the chase through the streets, a kind stranger with a treat, the landmark at golden hour, the balloon spotted at dusk, and the rooftop at blue hour. Each beat has its own lens and light. Claude writes what happens in each shot for your star and your city. If its answer is not usable, the film uses the built-in text of each beat.
+The story lives in `lib/xitbc.ts`. The film is a chase through one day, in seven beats: the morning arrival, the gust that steals the balloon, the chase through the streets, a kind stranger with a treat, the landmark at golden hour, the catch on a rooftop at dusk, and the triumph at blue hour. Each beat has its own lens and light. Claude writes what happens in each shot for your star and your city. If its answer is not usable, the film uses the built-in text of each beat.
 
 Every model runs as a Comfy workflow on Comfy Cloud, submitted from the server with `@comfyorg/sdk`:
 
@@ -96,7 +97,7 @@ These are list prices. Check your Comfy account for the exact charges.
 | Images | FLUX.2 [pro] | FLUX.2 [max] |
 | Video | MiniMax H3, 768p | MiniMax H3, 2K |
 | Storyboard only | about $0.45 | about $1.00 |
-| Whole film | about $4.55 | about $6.85 |
+| Whole film | about $4.65 | about $7.00 |
 
 ## How we judge "cinematic"
 

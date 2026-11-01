@@ -6,7 +6,7 @@ export type CityId = "new-york" | "tokyo" | "paris" | "london" | "san-francisco"
 export type StyleId = "live-action" | "animated";
 export type FormatId = "cinema" | "vertical";
 export type QualityId = "draft" | "final";
-export type BeatId = "arrival" | "gust" | "chase" | "treat" | "landmark" | "spotted" | "finale";
+export type BeatId = "arrival" | "gust" | "chase" | "treat" | "landmark" | "catch" | "finale";
 // The five iconic places each city offers the screenwriter.
 export type PlaceId = "arrival" | "streets" | "delight" | "landmark" | "finale";
 
@@ -27,7 +27,7 @@ export const MAX_CITY = 60;
 
 // The film is a chase through one day. The star arrives in the morning, a gust steals
 // the star's prop, and the star chases it through the streets, past a kind stranger and
-// across the landmark, until the prop turns up on a rooftop at blue hour. A screenwriter
+// across the landmark, catches it on a rooftop at dusk and holds it there at blue hour. A screenwriter
 // (Claude on Comfy Router) writes each shot for the star and the city. The text in each
 // beat below is the fallback for when that does not work. The actions suit any star,
 // whether a person, a pet or a toy, and the camera moves stay simple.
@@ -41,6 +41,10 @@ export const BEATS: {
   use: number;
   place: PlaceId | null;
   role: string;
+  balloon: string;
+  look: string;
+  // Added to every motion prompt of the beat, after the screenwriter's move.
+  camera: string;
   shot: string;
   light: string;
   frame: string;
@@ -52,12 +56,15 @@ export const BEATS: {
     label: "Arrival",
     seconds: 4,
     from: 0.3,
-    use: 3.8,
+    use: 3.5,
     place: "arrival",
-    role: "{name} arrives in the city, wide-eyed with wonder, with {prop} on a string.",
-    shot: "Wide shot from a low angle with a 24mm lens.",
-    light: "Early morning: the low sun between the towers lights {name}'s face and the upper floors warm gold, while the street stays in cool blue shade with a thin haze.",
-    frame: "{name} is {setting}, with {prop} on a string, turned three-quarters toward the camera, eyes wide, looking up at the towers.",
+    role: "{name} arrives in the city, wide-eyed with wonder, holding {prop} by its long white string.",
+    balloon: "{name} holds the long white string of {prop}, in the mouth if {name} is an animal.",
+    look: "the towers above",
+    camera: "The camera holds steady at {name}'s eye level.",
+    shot: "Wide shot from a low angle with a 24mm lens, {name} in three-quarter view with the head turned up toward the towers.",
+    light: "Early morning: the low sun shines down the avenue onto {name}'s face and body, exposed for {name}, with the upper floors warm gold and a thin haze.",
+    frame: "{name} is {setting}, holding {prop} by its string, eyes wide, looking up at the towers.",
     move: "{name} steps forward toward the camera and gazes up at the towers in wonder. The camera holds steady at {name}'s eye level. Every building keeps exactly its shape and its place.",
     sound: "echoing city ambience and distant traffic",
   },
@@ -65,28 +72,34 @@ export const BEATS: {
     id: "gust",
     label: "The gust",
     seconds: 4,
-    from: 0.2,
+    from: 0,
     use: 3.2,
     place: "arrival",
-    role: "A sudden gust of wind tears {prop} loose and carries it off, and {name} spins around in surprise.",
+    role: "A hard gust of wind tears the string away from {name}, {prop} flies off, and {name} reacts with shock.",
+    balloon: "{name} still holds the string of {prop}, pulled taut by a rising wind. Nobody else is close to {name}.",
+    look: "{prop} as it flies off",
+    camera: "The camera tilts up to follow {prop} as it rises.",
     shot: "Medium shot at {name}'s eye level with a 35mm lens.",
     light: "Bright morning sun with long, crisp shadows.",
-    frame: "{name} is on the sidewalk outside, as a sudden gust tears {prop} loose and lifts it into the air, {name}'s eyes wide with surprise.",
-    move: "The gust carries {prop} up and away down the street, and {name} spins around to watch it go, startled. The camera holds steady.",
+    frame: "{name} is on the sidewalk outside, holding the string of {prop} as the wind rises and leaves start to blow.",
+    move: "In the first second a hard gust whips {name} sideways and tears the string away. {prop} rises fast and leaves the top of the frame, and {name} lifts the head after it in shock. The camera tilts up after the balloon. Paper and leaves blow across the sidewalk.",
     sound: "a sudden whoosh of wind and startled passers-by",
   },
   {
     id: "chase",
     label: "The chase",
     seconds: 4,
-    from: 0.4,
-    use: 3.4,
+    from: 0.6,
+    use: 2.8,
     place: "streets",
     role: "{name} dashes after {prop} through a busy street, and passers-by stop and stare.",
-    shot: "Low tracking shot at {name}'s eye level with a 24mm lens and shallow depth of field.",
+    balloon: "{prop} is loose and out of reach: it floats high and far ahead of {name}, in the upper right of the frame, and its string trails free, touching nothing and no one.",
+    look: "{prop} ahead",
+    camera: "The camera moves sideways with {name} at running speed, so the street slides past behind {name}, and {name} closes the distance to {prop}.",
+    shot: "Fast tracking shot from the side at {name}'s eye level with a 24mm lens and shallow depth of field, {name} in profile in the left half of the frame, running flat out to the right toward the balloon in the upper right of the frame.",
     light: "Bright midday sun with short shadows.",
-    frame: "{name} is {setting}, running after {prop}, which floats ahead in the air, while passers-by stop and stare.",
-    move: "{name} runs after {prop} at full speed, in real time and not in slow motion, and passers-by step aside and turn to stare. The camera tracks alongside {name} at running speed.",
+    frame: "{name} is {setting}, running flat out in mid-stride with every foot off the ground, eyes on {prop} ahead, while passers-by stop and stare.",
+    move: "{name} runs flat out after {prop}, head low and eyes up, in real time and not in slow motion, and passers-by step aside and turn to stare. The camera tracks alongside {name} at full running speed.",
     sound: "car horns, quick footsteps and surprised voices",
   },
   {
@@ -94,13 +107,16 @@ export const BEATS: {
     label: "A kind stranger",
     seconds: 4,
     from: 0.3,
-    use: 3.5,
+    use: 2.7,
     place: "delight",
-    role: "The chase pauses for a moment of kindness: someone offers {name} a local treat, while {prop} drifts on above.",
-    shot: "Medium close-up at {name}'s eye level with a 50mm lens and soft background bokeh.",
+    role: "The chase pauses for a moment of kindness: someone offers {name} a local treat and points up at {prop}, still drifting in the sky.",
+    balloon: "{prop} is a small red dot far down the avenue, high in the sky.",
+    look: "the treat and the person offering it",
+    camera: "The person serving points down the avenue after {prop}, and {name} turns the head to follow the hand. The camera holds steady.",
+    shot: "Medium close-up at {name}'s eye level with a 50mm lens and soft background bokeh, {name} at true life size next to the person serving.",
     light: "Bright open shade on a sunny afternoon: soft daylight on the face, with the sunlit street glowing behind.",
     frame: "{name} is {setting}, catching a breath, eyes closed in pure delight.",
-    move: "{name} takes one bite, chews happily and looks up with delight at the person serving, who smiles and nods back. The camera holds steady with a very slow push-in.",
+    move: "{name} takes the treat in one bite and hurries off to the right after {prop}, out of the frame, as the person serving smiles and points after it. The camera holds steady.",
     sound: "the sizzle and clatter of a food stall",
   },
   {
@@ -108,41 +124,50 @@ export const BEATS: {
     label: "The landmark",
     seconds: 4,
     from: 0.5,
-    use: 3.8,
+    use: 3,
     place: "landmark",
     role: "{prop} drifts past the landmark, and {name} runs across it in pursuit.",
-    shot: "Medium-wide shot from a low angle with a 35mm lens, the landmark rising behind.",
+    balloon: "{prop} is loose and far out of reach: it floats high near the top of the landmark, ahead of {name}, its string trailing free.",
+    look: "{prop} ahead",
+    camera: "{name} keeps the back to the camera and never turns the head or the body toward it. The camera tracks behind {name} at running speed, wide enough to keep the landmark in view.",
+    shot: "Medium-wide tracking shot from behind {name}, at the height of {name}'s back, with a 35mm lens: {name} runs away from the camera toward the landmark rising ahead.",
     light: "Golden hour: a low warm sun from the side lights {name}'s face, against an amber sky with no blown-out white and long shadows.",
-    frame: "{name} is {setting}, running toward the camera after {prop}, which drifts overhead toward the landmark.",
-    move: "{name} runs toward the camera after {prop}, which drifts past overhead. The camera drifts slowly backward. Every cable, arch and edge of the landmark stays straight and unchanged.",
+    frame: "{name} is {setting}, running away from the camera toward the landmark after {prop}, head raised toward it, one eye and the side of the face in view.",
+    move: "{name} keeps running toward the landmark after {prop} and does not turn around. The camera tracks behind {name} at the same speed. Every cable, arch and edge of the landmark stays straight and unchanged.",
     sound: "wind and the distant hum of the city",
   },
   {
-    id: "spotted",
-    label: "Spotted",
-    seconds: 4,
-    from: 0.4,
-    use: 3.2,
+    id: "catch",
+    label: "The catch",
+    seconds: 5,
+    from: 0.2,
+    use: 4.6,
     place: null,
-    role: "At dusk, {name} spots {prop} snagged high on a rooftop and climbs after it.",
-    shot: "Medium shot from a low angle with a 35mm lens.",
+    role: "At dusk, {name} finds {prop} caught on the railing at the edge of a rooftop and grabs its string, in the mouth if {name} is an animal.",
+    balloon: "The trailing string of {prop} hangs just out of {name}'s reach above the railing at the edge of the roof.",
+    look: "the string of {prop}",
+    camera: "{name} lunges and catches the string, and {prop} stops with a jerk just above.",
+    shot: "Medium shot from a low angle with a 35mm lens, {name} in three-quarter view, the face turned up into the last light.",
     light: "Dusk: the last orange light on the rooftops and the first windows glowing.",
-    frame: "{name} is at the foot of an iron fire escape on a quiet side street, looking up with joy at {prop}, its string snagged on the rooftop railing high above.",
-    move: "{name} spots {prop} high above and starts up the fire escape after it, step by step. The camera tilts up slowly with {name}.",
-    sound: "a quiet street, distant traffic and clanging iron steps",
+    frame: "{name} is at the edge of a rooftop at dusk, stretching up toward the string of {prop}, which hangs just out of reach.",
+    move: "{name} lunges up and catches the string with a happy cry. Slow push-in on {name}'s face.",
+    sound: "a quiet rooftop, distant traffic and a happy cry",
   },
   {
     id: "finale",
     label: "Rooftop finale",
-    seconds: 6,
+    seconds: 7,
     from: 0,
     use: 6,
     place: "finale",
-    role: "On a rooftop at blue hour, {name} has {prop} back and gazes at the skyline in triumph.",
-    shot: "Medium-wide shot from the side with a 35mm lens, the horizon in the upper third.",
+    role: "On the rooftop at blue hour, {name} holds {prop} by its string, in the mouth if {name} is an animal, and gazes at the skyline in triumph.",
+    balloon: "{name} holds the string of {prop}, which floats just above {name}, fully inside the frame.",
+    look: "the glittering skyline",
+    camera: "The camera holds completely still.",
+    shot: "Medium-wide shot from the side with a 35mm lens, the horizon in the upper third, {name} in the left half of the frame and open sky on the right. Nobody else is on the rooftop.",
     light: "Blue hour: a deep blue sky and thousands of city lights glittering below, with warm string lights along the rooftop lighting {name} from the side.",
-    frame: "{name} is {setting}, with {prop} back on its string, in profile with a face full of joy, in a pose of pure triumph toward the skyline. Nobody else is on the rooftop.",
-    move: "{name} holds the pose of triumph for three seconds, then settles and gazes out over the glittering skyline, the face still in profile and full of joy. The camera pushes in slowly at {name}'s eye level, with no crane move, no tilt and no roll, and {tower} stays fixed in its place.",
+    frame: "{name} is {setting}, in three-quarter view with a face full of joy, holding the string of {prop}. Nobody else is on the rooftop.",
+    move: "{name} lifts the head toward the glittering skyline, still holding the string of {prop}, and shows pure joy. The camera holds completely still, so {prop} stays fully inside the frame, and {tower} stays fixed in its place.",
     sound: "soft wind high above the city and a distant city hum",
   },
 ];
@@ -218,9 +243,9 @@ export const STYLES: Record<StyleId, { label: string; hint: string; still: strin
   "live-action": {
     label: "Live action",
     hint: "Looks like a real film",
-    still: "A photorealistic live-action film still on 35mm film, shot with anamorphic lenses: soft contrast, natural skin tones, warm highlights, neutral shadows and subtle grain. The grade matches every other shot of the film, and only the color temperature follows the time of day.",
+    still: "A photorealistic live-action film still on 35mm film, shot with anamorphic lenses: soft contrast, natural skin tones, warm highlights, neutral shadows and subtle grain. Natural textures throughout: real skin, hair, fur and fleece with separate fibers, never a felt, plush or clay look. The grade matches every other shot of the film, and only the color temperature follows the time of day.",
     motion: "Photorealistic live-action film footage.",
-    cast: "a photorealistic photograph",
+    cast: "a photorealistic photograph on a cinema camera, with natural textures: real skin, hair, fur and fleece with separate fibers, never a felt, plush or clay look,",
     grain: true,
   },
   animated: {
@@ -339,6 +364,11 @@ export function filmCost(quality: QualityId) {
   return storyboardCost(quality) + clipSeconds * QUALITIES[quality].videoPerSecond + filmSeconds() * MUSIC_PER_SECOND;
 }
 
+// Filming one shot again also scores the film again.
+export function refilmCost(quality: QualityId, seconds: number) {
+  return seconds * QUALITIES[quality].videoPerSecond + filmSeconds() * MUSIC_PER_SECOND;
+}
+
 // What the star chases. It is not part of the outfit, so the outfit lock does not draw it
 // back on the star in the shots where it is gone.
 export const PROP = "a bright red balloon";
@@ -364,15 +394,18 @@ export function scriptPrompt(request: FilmRequest, notes = "") {
   const name = starName(request);
   const description = clean(request.description, MAX_DESCRIPTION);
   const city = cityPack(request);
-  const beats = BEATS.map((beat, index) => `${index + 1}. "${beat.id}": ${fill(beat.role, { name, prop: PROP })} Light: ${fill(beat.light, { name })}`);
+  const beats = BEATS.map((beat, index) => {
+    const values = { name, prop: PROP };
+    return `${index + 1}. "${beat.id}": ${fill(beat.role, values)} The balloon: ${sentence(fill(beat.balloon, values))} ${name} looks at ${fill(beat.look, values)}. Light: ${fill(beat.light, values)}`;
+  });
   return [
     `You write the screenplay of a ${Math.round(filmSeconds())}-second ${request.style === "animated" ? "3D animated" : "live-action"} short film. The star is ${name}${description ? `, ${description}` : ""}.${notes ? ` ${name}'s look: ${notes}` : ""}`,
     `The film is a playful chase through one day in ${city.name}, in ${BEATS.length} shots of about 3 seconds each, in this order:\n${beats.join("\n")}`,
-    `The balloon is the same in every shot: ${PROP} on a long white string. Use these places in ${city.name} where they fit:\n${Object.values(city.settings).map((place) => `- ${place}`).join("\n")}`,
-    `Rules for every shot: one clear action that takes about 3 seconds. ${name} moves only as ${name}'s own body allows: an animal stays on its legs and never gets hands. Passers-by react to ${name} with surprise or delight, and they wear muted gray, navy, black and white. There are no signs, screens or written words. Nobody looks into the lens.`,
+    `The balloon is the same in every shot: ${PROP} on a long white string, matte and never glowing. Use these places in ${city.name} where they fit:\n${Object.values(city.settings).map((place) => `- ${place}`).join("\n")}`,
+    `Rules for every shot: one clear action that takes about 3 seconds. ${name} moves only as ${name}'s own body allows: an animal stays on its legs and never gets hands. In every move, ${name} shows the feeling with one clear physical reaction: for an animal, the ears, head, tail or a sound, and for a person, the face and body. Passers-by react to ${name} with surprise or delight, and they wear muted gray, navy, black and white. There are no signs, screens or written words. Nobody looks into the lens.`,
     `Answer with JSON only, with no other text: {"shots": [{"beat": "arrival", "frame": "...", "move": "...", "sound": "..."}]}, with one shot for each beat, in order.`,
-    `"frame": the first frame as a still photo, in at most 45 words: where ${name} is, the pose, where the balloon is, and what the people around do. No camera words.`,
-    `"move": what happens during the shot and how the camera moves, in at most 45 words. Use only simple camera moves: a still camera, a slow push-in, a tracking shot at ${name}'s speed or a slow tilt. Never a crane, an orbit or a whip pan.`,
+    `"frame": the first frame as a still photo, in at most 45 words: where ${name} is, the pose, where ${name} looks, where the balloon is, and what the people around do. Keep the balloon exactly as the beat says. No camera words.`,
+    `"move": what happens during the shot and how the camera moves, in at most 45 words. In the last shot the camera holds still and the balloon stays fully inside the frame. Use only simple camera moves: a still camera, a slow push-in, a tracking shot at ${name}'s speed or a slow tilt. Never a crane, an orbit or a whip pan.`,
     `"sound": the natural sounds of the shot in at most 12 words. ${name} may make ${name}'s own sounds. No music and no speech.`,
   ].join("\n\n");
 }
@@ -401,7 +434,7 @@ export function readScript(text: string): Script | null {
 }
 
 // An animal or a toy keeps its own body. Without this, an image model gives a sheep hands to hold its food.
-const BODY = (name: string) => `${name} keeps exactly the body from the references: an animal or a toy never gets human hands or a human pose.`;
+const BODY = (name: string) => `${name} keeps exactly the body and size from the references: an animal or a toy never gets human hands, a human pose or a human grin, and its feet never hold anything.`;
 
 function starLine(request: FilmRequest, source: "photo" | "cast", notes = "") {
   const name = starName(request);
@@ -436,6 +469,8 @@ function fill(text: string, values: Record<string, string>) {
   return text.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
 }
 
+const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
 function scriptShot(script: Script, beat: BeatId) {
   const shot = script.shots.find((item) => item.beat === beat);
   if (!shot) throw new Error(`The screenplay has no "${beat}" shot.`);
@@ -445,11 +480,15 @@ function scriptShot(script: Script, beat: BeatId) {
 export function shotStillPrompt(request: FilmRequest, beat: BeatId, notes = "", script = defaultScript(request)) {
   const spec = BEATS.find((item) => item.id === beat)!;
   const name = starName(request);
+  const values = { name, prop: PROP };
   return [
     STYLES[request.style].still,
     starLine(request, "cast", notes),
     fill(spec.shot, { name }),
     scriptShot(script, beat).frame,
+    sentence(fill(spec.balloon, values)),
+    "The balloon is matte, never glowing, with one long white string, and lit only by the light around it.",
+    `${name} looks at ${fill(spec.look, values)}, never into the lens.`,
     fill(spec.light, { name }),
     `Passers-by wear muted gray, navy, black and white, so nobody else wears ${name}'s colors.`,
     FORMATS[request.format].composition,
@@ -458,15 +497,19 @@ export function shotStillPrompt(request: FilmRequest, beat: BeatId, notes = "", 
 }
 
 export function shotMotionPrompt(request: FilmRequest, beat: BeatId, notes = "", script = defaultScript(request)) {
+  const spec = BEATS.find((item) => item.id === beat)!;
   const shot = scriptShot(script, beat);
   const name = starName(request);
+  const values = { name, prop: PROP };
   return [
     "Use the provided start image as the first frame.",
     shot.move,
+    fill(spec.camera, { ...values, tower: cityPack(request).tower }),
+    `At the start of the shot: ${fill(spec.balloon, values)}`,
     `${name} keeps exactly the same face, colors and outfit in every frame${notes ? `: ${notes}` : "."}`,
-    `${name} never looks into the lens.`,
+    `For the whole shot, ${name}'s eyes stay on ${fill(spec.look, values)}, never on the lens.`,
     BODY(name),
-    "The light stays as it is in the first frame.",
+    "The light and the exposure stay as they are in the first frame.",
     `Sound: ${shot.sound}. No music and no speech.`,
     `${STYLES[request.style].motion} Smooth stabilized camera, natural motion blur, realistic physics. No text, no subtitles, no cuts.`,
   ].join(" ");
@@ -476,7 +519,7 @@ export function shotMotionPrompt(request: FilmRequest, beat: BeatId, notes = "",
 // so the star's outfit and accessories stay the same from shot to shot.
 export function castNotesPrompt(request: FilmRequest) {
   const name = starName(request);
-  return `This is the casting image of ${name}, the star of a short film. Describe ${name}'s fixed look so that an image model can draw exactly the same character in every scene: face, hair or fur, skin or coat colors, and every item of clothing and every accessory with its exact color, material and shape. Write one plain paragraph of at most 70 words. Leave out the pose, the facial expression, the background, the light, whether the image is a photo or a render, and any opinion.`;
+  return `This is the casting image of ${name}, the star of a short film. Describe ${name}'s fixed look so that an image model can draw exactly the same character in every scene: face, hair or fur, skin or coat colors, and every item of clothing and every accessory with its exact color, material and shape. Give ${name}'s size next to an adult person, for example "its back reaches an adult's hip". Write one plain paragraph of at most 80 words. Leave out the pose, the facial expression, the background, the light, whether the image is a photo or a render, and any opinion.`;
 }
 
 export function scorePrompt(request: FilmRequest) {

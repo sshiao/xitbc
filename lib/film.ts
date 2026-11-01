@@ -202,6 +202,29 @@ export async function redrawShot(id: string, index: number): Promise<Film> {
   return film;
 }
 
+// Films shots of a finished film again and cuts the film again with one new score.
+// The shots in "redraw" also get a new still first. The other clips stay as they are.
+export async function refilmShot(id: string, indexes: number[], redraw: number[] = []): Promise<Film> {
+  const film = await readFilm(id);
+  if (!film) throw new Error("Unknown film.");
+  if (film.storyboardOnly || film.stage !== "done") throw new Error("Only a finished film can have a shot filmed again.");
+  if (!current(film)) throw new Error(OLDER);
+  if (indexes.length === 0 || [...indexes, ...redraw].some((index) => !film.shots[index])) throw new Error("Unknown shot.");
+  for (const index of new Set([...indexes, ...redraw])) {
+    const shot = film.shots[index];
+    if (redraw.includes(index)) shot.still = null;
+    shot.seconds = BEATS[index].seconds;
+    shot.clip = null;
+    shot.job = null;
+    shot.status = "waiting";
+  }
+  film.stage = "filming";
+  film.finishedAt = null;
+  await save(film);
+  void produce(film);
+  return film;
+}
+
 async function produce(film: Film) {
   try {
     await stages(film);
@@ -224,6 +247,11 @@ async function stages(film: Film) {
   const write = async (name: string, media: Media) => {
     await writeFile(join(dir, name), media.bytes);
     return name;
+  };
+  // A file made again gets a new name, so the page does not show the cached one.
+  const fresh = async (base: string, ext: string) => {
+    const taken = await access(join(dir, `${base}.${ext}`)).then(() => true, () => false);
+    return taken ? `${base}-${Date.now().toString(36)}.${ext}` : `${base}.${ext}`;
   };
 
   // 1. Casting: one clean, full-body image of the star that every shot refers to.
@@ -282,10 +310,7 @@ async function stages(film: Film) {
       shot.status = "composing";
       await save(film);
       still = await retry(() => engine.image({ prompt: shotStillPrompt(request, shot.beat, notes, script), width, height, seed: randomSeed(), quality: request.quality, refs }));
-      // A redrawn still gets a new name, so the page does not show the cached one.
-      const first = `shot-${index + 1}.png`;
-      const taken = await access(join(dir, first)).then(() => true, () => false);
-      shot.still = await write(taken ? `shot-${index + 1}-${Date.now().toString(36)}.png` : first, still);
+      shot.still = await write(await fresh(`shot-${index + 1}`, "png"), still);
     }
     // A shot that already has its clip is not filmed again.
     if (film.storyboardOnly || shot.clip) {
@@ -307,7 +332,7 @@ async function stages(film: Film) {
       job: shot.job ?? undefined,
       onSubmit: async (job) => { shot.job = job; await save(film); },
     }));
-    shot.clip = await write(`shot-${index + 1}.mp4`, clip);
+    shot.clip = await write(await fresh(`shot-${index + 1}`, "mp4"), clip);
     shot.status = "done";
     await save(film);
   }));
@@ -374,8 +399,9 @@ async function stages(film: Film) {
   // 5. Final mix.
   film.stage = "editing";
   await save(film);
-  await runFfmpeg(finalMixArgs({ rough: join(dir, "rough.mp4"), music: film.music ? join(dir, film.music) : null, seconds, out: join(dir, "final.mp4") }));
-  film.final = "final.mp4";
+  const final = await fresh("final", "mp4");
+  await runFfmpeg(finalMixArgs({ rough: join(dir, "rough.mp4"), music: film.music ? join(dir, film.music) : null, seconds, out: join(dir, final) }));
+  film.final = final;
   film.stage = "done";
   film.finishedAt = Date.now();
   await save(film);
